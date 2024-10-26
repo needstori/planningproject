@@ -23,8 +23,6 @@ public class PlanningTaskListPanel extends PluginPanel {
 
         this.planningProjectManager = planningProjectPlugin;
 
-
-
         buildPanel();
     }
 

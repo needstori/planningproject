@@ -20,9 +20,11 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.game.ItemManager;
 
 import java.awt.image.BufferedImage;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -50,7 +52,6 @@ public class PlanningProjectPlugin extends Plugin
 	private Gson gson;
 
 	private NavigationButton navButton;
-	private PlanningTaskListPanel sidePanel;
 	private PlanningTaskListManager taskListManager;
 
 	@Override
@@ -60,14 +61,12 @@ public class PlanningProjectPlugin extends Plugin
 
 		taskListManager = new PlanningTaskListManager(this, loadConfig());
 
-		sidePanel = new PlanningTaskListPanel(taskListManager);
-
 		final BufferedImage sidebarIcon = ImageUtil.getResourceStreamFromClass(getClass(), "/sidebar_icon.png");
 		navButton = NavigationButton.builder()
 				.tooltip("Planning Project")
 				.icon(sidebarIcon)
 				.priority(10)
-				.panel(sidePanel)
+				.panel(taskListManager.getPanel())
 				.build();
 		clientToolbar.addNavigation(navButton);
 	}

@@ -2,18 +2,29 @@ package com.planningproject;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 
+import joptsimple.internal.Strings;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.DynamicGridLayout;
+import net.runelite.client.ui.components.IconTextField;
+import net.runelite.http.api.item.ItemPrice;
+import java.util.List;
 
 @Slf4j
 public class PlanningTaskPanel extends JPanel {
+
+    private static final String COMMIT_ACTION = "commit";
 
     private static final Color INCOMPLETE = Color.RED;
     private static final Color COMPLETE = Color.GREEN;
@@ -23,6 +34,9 @@ public class PlanningTaskPanel extends JPanel {
 
     private JTextArea nameLabel;
     private JTextArea descriptionLabel;
+    private JButton deleteButton;
+    private JButton completeButton;
+    private JTextField itemSearch;
 
     private PlanningTaskListManager planningProjectManager;
 
@@ -55,7 +69,10 @@ public class PlanningTaskPanel extends JPanel {
         });
 
         nameLabel.setText(task.getTaskName());
-        nameLabel.setForeground(INCOMPLETE);
+        if( task.isTaskDone() )
+            nameLabel.setForeground(COMPLETE);
+        else
+            nameLabel.setForeground(INCOMPLETE);
         add(nameLabel);
 
         descriptionLabel = new JTextArea();
@@ -80,6 +97,36 @@ public class PlanningTaskPanel extends JPanel {
         descriptionLabel.setText(task.getTaskDescription());
         add(descriptionLabel);
 
+        deleteButton = new JButton();
+        deleteButton.setText("Delete");
+        deleteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                planningProjectManager.removeTask(task);
+            }
+        });
+
+        add(deleteButton);
+
+        completeButton = new JButton();
+        completeButton.setText("Complete");
+        completeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                task.setTaskDone(true);
+                planningProjectManager.rebuildPanel();
+                planningProjectManager.saveConfig();
+            }
+        });
+
+        add(completeButton);
+
+        itemSearch = new JTextField();
+        ItemSearchAutocomplete autocomplete = new ItemSearchAutocomplete(itemSearch, planningProjectManager.getItemManager());
+        itemSearch.getDocument().addDocumentListener(autocomplete);
+        itemSearch.getInputMap().put(KeyStroke.getKeyStroke("TAB"), COMMIT_ACTION);
+        itemSearch.getActionMap().put(COMMIT_ACTION, autocomplete.new CommitAction());
+        add(itemSearch);
     }
 
     @Override
@@ -87,3 +134,4 @@ public class PlanningTaskPanel extends JPanel {
         return getPreferredSize();
     }
 }
+
