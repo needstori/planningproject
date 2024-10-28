@@ -19,7 +19,11 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.DynamicGridLayout;
 import net.runelite.client.ui.components.IconTextField;
 import net.runelite.http.api.item.ItemPrice;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Slf4j
 public class PlanningTaskPanel extends JPanel {
@@ -36,6 +40,7 @@ public class PlanningTaskPanel extends JPanel {
     private JTextArea descriptionLabel;
     private JButton deleteButton;
     private JButton completeButton;
+    private ItemListPanel itemList;
     private JTextField itemSearch;
 
     private PlanningTaskListManager planningProjectManager;
@@ -121,8 +126,15 @@ public class PlanningTaskPanel extends JPanel {
 
         add(completeButton);
 
+        /*Add list of items required*/
+        if( task.getRequiredItems() != null && task.getRequiredItems().size() > 0)
+        {
+            itemList = new ItemListPanel(this);
+            add(itemList);
+        }
+
         itemSearch = new JTextField();
-        ItemSearchAutocomplete autocomplete = new ItemSearchAutocomplete(itemSearch, planningProjectManager.getItemManager());
+        ItemSearchAutocomplete autocomplete = new ItemSearchAutocomplete(itemSearch, planningProjectManager, getTask());
         itemSearch.getDocument().addDocumentListener(autocomplete);
         itemSearch.getInputMap().put(KeyStroke.getKeyStroke("TAB"), COMMIT_ACTION);
         itemSearch.getActionMap().put(COMMIT_ACTION, autocomplete.new CommitAction());
@@ -132,6 +144,69 @@ public class PlanningTaskPanel extends JPanel {
     @Override
     public Dimension getMaximumSize() {
         return getPreferredSize();
+    }
+
+    private class ItemListEntry extends JPanel {
+
+        private JLabel itemName;
+        private JButton deleteButton;
+        private int itemListIndex;
+        private PlanningTaskPanel parentPanel;
+
+        ItemListEntry(String itemNameString, int index, PlanningTaskPanel parentPanel){
+            this.itemListIndex = index;
+
+            setLayout(new BorderLayout());
+            setBorder(new EmptyBorder(1, 1, 1, 1));
+
+
+
+            itemName = new JLabel();
+            itemName.setText(itemNameString);
+            add(itemName, BorderLayout.WEST);
+
+            deleteButton = new JButton();
+            deleteButton.setText("X");
+            deleteButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    ArrayList<Integer> newReqs = parentPanel.getTask().getRequiredItems();
+                    newReqs.remove(itemListIndex);
+                    parentPanel.getTask().setRequiredItems(newReqs);
+                    planningProjectManager.saveConfig();
+                    planningProjectManager.rebuildPanel();
+                }
+            });
+            add(deleteButton, BorderLayout.EAST);
+        }
+    }
+
+    private class ItemListPanel extends JPanel{
+        private PlanningTaskPanel parentPanel;
+
+        ItemListPanel( PlanningTaskPanel parentPanel) {
+            this.parentPanel = parentPanel;
+            planningProjectManager.getClientThread().invokeLater(() -> buildPanel());
+        }
+
+        void buildPanel()
+        {
+            planningProjectManager.getItemManager().search("Coins");
+            log.info(planningProjectManager.getItemManager().search("Coins").toString());
+
+            removeAll();
+
+            IntStream.range(0, parentPanel.getTask().getRequiredItems().size())
+                    .forEach(index -> addEntry(parentPanel.getTask().getRequiredItems().get(index), index));
+        }
+
+        void addEntry(int itemId, int entryIndex)
+        {
+
+            ItemListEntry newEntry = new ItemListEntry(planningProjectManager.getItemManager().getItemComposition(itemId).getName(),
+                    entryIndex, parentPanel);
+            add(newEntry);
+        }
     }
 }
 

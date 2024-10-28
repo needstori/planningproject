@@ -56,11 +56,13 @@ public class PlanningTaskListPanel extends PluginPanel {
         JPanel planningListPanel = new JPanel();
         planningListPanel.setLayout(new DynamicGridLayout(0, 1, 0, 2));
 
+
         for ( PlanningTask planningTask : planningProjectManager.getLoadedPlanningTasks())
         {
             PlanningTaskPanel newTaskPanel = new PlanningTaskPanel(planningTask, planningProjectManager);
             planningListPanel.add(newTaskPanel);
         }
+
 
         JScrollPane scrollPane = new JScrollPane(planningListPanel);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);

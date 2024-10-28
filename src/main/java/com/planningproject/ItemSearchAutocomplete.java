@@ -3,6 +3,7 @@ package com.planningproject;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.plugins.inventorygrid.InventoryGridConfig;
 import net.runelite.http.api.item.ItemPrice;
 
 import javax.swing.*;
@@ -10,6 +11,8 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import java.awt.event.ActionEvent;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,18 +26,21 @@ public class ItemSearchAutocomplete implements DocumentListener {
     };
 
     private JTextField textField;
-    private ItemManager itemManager;
+    private PlanningTaskListManager planningTaskListManager;
+    private PlanningTask task;
+    private ItemPrice currentCompletion;
+    private int currentCompletionId;
     private Mode mode = Mode.INSERT;
 
-    public ItemSearchAutocomplete(JTextField textField, ItemManager itemManager)
+    public ItemSearchAutocomplete(JTextField textField, PlanningTaskListManager planningTaskListManager, PlanningTask task)
     {
         this.textField = textField;
-        this.itemManager = itemManager;
+        this.planningTaskListManager = planningTaskListManager;
+        this.task = task;
     }
 
     @Override
     public void insertUpdate(DocumentEvent e) {
-        log.info("Insert update called");
         int pos = e.getOffset();
         String content = null;
         try {
@@ -46,17 +52,19 @@ public class ItemSearchAutocomplete implements DocumentListener {
         if (content.length() < 2)
             return;
 
-        log.info("Search started");
-        List<ItemPrice> results = itemManager.search(content);
+        List<ItemPrice> results = planningTaskListManager.getItemManager().search(content);
         Stream<ItemPrice> resultsStream = results.stream();
         String finalContent = content;
         List<ItemPrice> filteredResults =  resultsStream.filter(r -> r.getName().startsWith(finalContent)).collect(Collectors.toList());
         if ( filteredResults.isEmpty() )
             return;
 
-        String result = filteredResults.get(0).getName();
+        currentCompletion = filteredResults.get(0);
+        String result = currentCompletion.getName();
+        currentCompletionId = currentCompletion.getId();
         String completion = result.substring(pos + 1);
         SwingUtilities.invokeLater(new CompletionTask(completion, pos + 1));
+
 
     }
 
@@ -67,7 +75,6 @@ public class ItemSearchAutocomplete implements DocumentListener {
 
     @Override
     public void changedUpdate(DocumentEvent e) {
-
     }
 
     public class CommitAction extends AbstractAction {
@@ -77,11 +84,17 @@ public class ItemSearchAutocomplete implements DocumentListener {
             if ( mode == Mode.COMPLETION ){
                 int pos = textField.getSelectionEnd();
                 StringBuffer sb = new StringBuffer(textField.getText());
-                sb.insert(pos, " ");
                 textField.setText(sb.toString());
-                textField.setCaretPosition(pos + 1);
+                textField.setCaretPosition(pos);
+                ArrayList<Integer> newReqs = task.getRequiredItems();
+                if ( newReqs == null )
+                    newReqs = new ArrayList<Integer>();
+                newReqs.add(currentCompletionId);
+                task.setRequiredItems(newReqs);
                 mode = Mode.INSERT;
                 textField.setFocusTraversalKeysEnabled(true);
+                planningTaskListManager.saveConfig();
+                planningTaskListManager.rebuildPanel();
             } else {
                 textField.replaceSelection("\t");
             }
@@ -98,7 +111,6 @@ public class ItemSearchAutocomplete implements DocumentListener {
         }
 
         public void run() {
-            log.info("Completion Task run");
             StringBuffer sb = new StringBuffer(textField.getText());
             sb.insert(position, completion);
             textField.setText(sb.toString());
